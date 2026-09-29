@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Object Detection System & Analytics Studio</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Top Navigation Bar -->
+        <header class="navbar">
+            <div class="logo">
+                <i class="fa-solid fa-eye brand-icon"></i>
+                <div class="brand-text">
+                    <span class="brand-title">OBJECT DETECTOR</span>
+                    <span class="brand-sub">VISION & ANALYTICS PLATFORM</span>
+                </div>
+            </div>
+
+            <div class="status-pills">
+                <div class="pill pill-backend">
+                    <i class="fa-solid fa-microchip"></i>
+                    <span>Engine: <strong id="backend-label">{{ backend_name }}</strong></span>
+                </div>
+                <div class="pill pill-live">
+                    <span class="live-dot"></span>
+                    <span>System Ready</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Layout -->
+        <main class="main-content">
+            <!-- Left Sidebar Controls -->
+            <aside class="sidebar">
+                <div class="panel-card">
+                    <h3><i class="fa-solid fa-sliders"></i> Control Panel</h3>
+                    
+                    <!-- Confidence Threshold Slider -->
+                    <div class="control-group">
+                        <label for="conf-slider">
+                            Confidence Threshold: <span id="conf-val" class="highlight">35%</span>
+                        </label>
+                        <input type="range" id="conf-slider" min="10" max="95" value="35" step="5">
+                    </div>
+
+                    <!-- Class Filter Input -->
+                    <div class="control-group">
+                        <label for="class-filter"><i class="fa-solid fa-filter"></i> Target Classes (Optional):</label>
+                        <input type="text" id="class-filter" placeholder="e.g. person, car, dog">
+                        <small class="help-text">Leave blank to detect all supported classes.</small>
+                    </div>
+
+                    <!-- Mode Switcher -->
+                    <div class="control-group">
+                        <label><i class="fa-solid fa-photo-film"></i> Mode Selector:</label>
+                        <div class="tab-buttons">
+                            <button class="tab-btn active" data-tab="tab-upload">
+                                <i class="fa-solid fa-upload"></i> Upload Photo
+                            </button>
+                            <button class="tab-btn" data-tab="tab-webcam">
+                                <i class="fa-solid fa-video"></i> Live Stream
+                            </button>
+                        </div>
+                    </div>
+
+                    <button id="btn-sample" class="btn btn-secondary">
+                        <i class="fa-solid fa-bolt"></i> Run Instant Synthetic Test
+                    </button>
+                </div>
+
+                <!-- Live Metrics Card -->
+                <div class="panel-card metrics-card">
+                    <h3><i class="fa-solid fa-chart-pie"></i> Detection Stats</h3>
+                    <div class="stat-grid">
+                        <div class="stat-box">
+                            <span class="stat-number" id="stat-total">0</span>
+                            <span class="stat-label">Total Detected</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-number" id="stat-time">0 ms</span>
+                            <span class="stat-label">Inference Time</span>
+                        </div>
+                    </div>
+                    <!-- Chart Canvas -->
+                    <div class="chart-container">
+                        <canvas id="classChart"></canvas>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Center Display Viewport -->
+            <section class="viewport-section">
+                <!-- Upload Tab Content -->
+                <div id="tab-upload" class="tab-content active">
+                    <div class="drop-zone" id="drop-zone">
+                        <i class="fa-solid fa-cloud-arrow-up drop-icon"></i>
+                        <p class="drop-text">Drag & Drop an image here, or <span>Browse File</span></p>
+                        <input type="file" id="file-input" accept="image/*">
+                    </div>
+
+                    <div class="display-container" id="display-container" style="display: none;">
+                        <div class="viewport-header">
+                            <span><i class="fa-solid fa-image"></i> Detection Output View</span>
+                            <button id="btn-download" class="btn btn-sm btn-secondary">
+                                <i class="fa-solid fa-download"></i> Download Image
+                            </button>
+                        </div>
+                        <div class="image-wrapper">
+                            <img id="result-img" src="" alt="Annotated Result">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Webcam Stream Tab Content -->
+                <div id="tab-webcam" class="tab-content">
+                    <div class="webcam-viewport">
+                        <div class="viewport-header">
+                            <span><i class="fa-solid fa-video"></i> Live Webcam Feed</span>
+                        </div>
+                        <div class="webcam-wrapper">
+                            <img id="webcam-feed" src="" alt="Live Video Feed" data-src="/video_feed">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detection Table / JSON Inspector -->
+                <div class="panel-card details-card">
+                    <div class="details-header">
+                        <h3><i class="fa-solid fa-list-check"></i> Detected Objects Breakdown</h3>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table" id="detection-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Class Label</th>
+                                    <th>Confidence</th>
+                                    <th>Bounding Box [Xmin, Ymin, Xmax, Ymax]</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body">
+                                <tr>
+                                    <td colspan="4" class="empty-msg">No object detection results available yet. Upload an image or run sample test.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
